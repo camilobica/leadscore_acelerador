@@ -59,11 +59,11 @@ ciclo_cores = cycler('color', cores)
 plt.rc('axes', prop_cycle=ciclo_cores)
 
 # === Interface ===
-aba1, aba2 = st.tabs(["📈 Leadscore Portal VHE", "🧮 Como Calculamos o Leadscore"])
+aba1, aba2 = st.tabs(["📈 Leadscore Acelerador", "🧮 Como Calculamos o Leadscore"])
 
 # === Aba 1: Lançamentos Anteriores ===
 with aba1:
-    st.title("📈 Lançamentos")
+    st.title("📈 Leadscore Acelerador")
     st.markdown(f"**Última atualização:** {datetime.now().strftime('%d/%m/%Y %H:%M')}")
 
     filtros_col1, filtros_col2, filtros_col5  = st.columns(3)
