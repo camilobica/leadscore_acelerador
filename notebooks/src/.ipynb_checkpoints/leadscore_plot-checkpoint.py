@@ -12,63 +12,6 @@ ciclo_cores = cycler('color', cores)
 plt.rc('axes', prop_cycle=ciclo_cores)
 
 
-def plot_distribuicao_barra(df):
-    """
-    Plota a distribuição percentual de faixas de leadscore.
-    """
-    distrib = df["leadscore_faixa"].value_counts(normalize=True).sort_index() * 100
-
-    plt.figure(figsize=(8, 5))
-    ax = sns.barplot(x=distrib.index, y=distrib.values, color=cores[0])
-
-    for i, val in enumerate(distrib.values):
-        ax.text(i, val + 1, f"{val:.1f}%", ha='center', fontsize=10)
-
-    plt.ylim(0, distrib.max() + 10)
-    plt.title("Distribuição de Faixas de Leadscore")
-    plt.ylabel("")
-    plt.yticks([])
-    plt.xlabel("")
-    plt.tick_params(axis='x', length=0)
-
-    for spine in ["top", "right", "left", "bottom"]:
-        plt.gca().spines[spine].set_visible(False)
-        
-    plt.tight_layout()
-    plt.show()
-
-
-def plot_distribuicao_faixa_predita(df):
-    """
-    Plota gráfico de barras horizontal com contagem de leads por faixa predita via regressão,
-    ordenando as faixas do maior para o menor valor.
-
-    Parâmetros:
-    ----------
-    df : pd.DataFrame
-        DataFrame contendo a coluna 'faixa_predita_por_regressao'.
-    """
-    contagem_faixas = df["faixa_predita_por_regressao"].value_counts().sort_values(ascending=False)
-
-    plt.figure(figsize=(5, 5))
-    ax = sns.barplot(y=contagem_faixas.index, x=contagem_faixas.values, color=cores[0])
-    plt.title("Quantidade de Leads por Faixa", pad=20)
-    plt.xlabel("")
-    plt.ylabel("")
-    plt.xticks([])
-    plt.tight_layout()
-
-    for i, v in enumerate(contagem_faixas.values):
-        ax.text(v + 20, i, str(v), va='center', ha='left')
-
-    ax.tick_params(axis='y', length=0)
-
-    for spine in ["top", "right", "left", "bottom"]:
-        ax.spines[spine].set_visible(False)
-
-    plt.show()
-
-
 def plot_histograma_leadscore(df, limite_a, limite_b, limite_c, limite_d):
     """
     Plota histograma do leadscore estimado total com linhas verticais para os limites das faixas.
@@ -80,14 +23,14 @@ def plot_histograma_leadscore(df, limite_a, limite_b, limite_c, limite_d):
     limite_a, limite_b, limite_c, limite_d : float
         Limites das faixas A, B, C e D (em ordem decrescente).
     """
-    bins_leadscore = np.histogram_bin_edges(df["leadscore_estimado_total"], bins="sturges")
+    bins_leadscore = np.histogram_bin_edges(df["leadscore_mapeado"], bins="sturges")
     bins_leadscore = np.round(bins_leadscore).astype(int)
 
     interval_labels = [f"{bins_leadscore[i]}–{bins_leadscore[i+1]}" for i in range(len(bins_leadscore) - 1)]
     bin_centers = (bins_leadscore[:-1] + bins_leadscore[1:]) / 2
 
     plt.figure(figsize=(10, 5))
-    ax = sns.histplot(df["leadscore_estimado_total"], bins=bins_leadscore, color=cores[1])
+    ax = sns.histplot(df["leadscore_mapeado"], bins=bins_leadscore, color=cores[1])
     plt.suptitle("Distribuição do Leadscore por Faixa", y=0.97, fontsize=14)
     plt.xlabel("")
     plt.ylabel("")
@@ -116,7 +59,7 @@ def plot_histograma_leadscore(df, limite_a, limite_b, limite_c, limite_d):
     plt.show()
 
 
-def plot_comparativo_projecao_realidade(df_leads, df_alunos):
+def plot_comparativo_leads_alunos(df_leads, df_alunos):
     """
     Plota gráfico comparando a proporção de faixas previstas (leads) vs reais (alunos).
 
@@ -128,16 +71,16 @@ def plot_comparativo_projecao_realidade(df_leads, df_alunos):
     df_alunos : pd.DataFrame
         DataFrame com a coluna 'leadscore_faixa'.
     """
-    contagem_prevista = df_leads["faixa_predita_por_regressao"].value_counts(normalize=True).sort_index() * 100
+    contagem_prevista = df_leads["leadscore_faixa"].value_counts(normalize=True).sort_index() * 100
     contagem_real = df_alunos["leadscore_faixa"].value_counts(normalize=True).sort_index() * 100
 
     comparativo_perc = pd.DataFrame({
-        "Projeção (%) entre Leads": contagem_prevista,
-        "Realidade (%) entre Alunos": contagem_real
+        "Leads (%)": contagem_prevista,
+        "Alunos (%)": contagem_real
     }).fillna(0).round(1)
 
     comparativo_perc["Variação (p.p.)"] = (
-        comparativo_perc["Projeção (%) entre Leads"] - comparativo_perc["Realidade (%) entre Alunos"]
+        comparativo_perc["Leads (%)"] - comparativo_perc["Alunos (%)"]
     ).round(1)
 
     plt.figure(figsize=(8, 5))
@@ -145,8 +88,8 @@ def plot_comparativo_projecao_realidade(df_leads, df_alunos):
     x = np.arange(len(labels))
     width = 0.35
 
-    bars1 = plt.bar(x - width/2, comparativo_perc["Projeção (%) entre Leads"], width, label="Projeção (Leads)", color=cores[0])
-    bars2 = plt.bar(x + width/2, comparativo_perc["Realidade (%) entre Alunos"], width, label="Realidade (Alunos)", color=cores[2])
+    bars1 = plt.bar(x - width/2, comparativo_perc["Leads (%)"], width, label="Leads (%)", color=cores[2])
+    bars2 = plt.bar(x + width/2, comparativo_perc["Alunos (%)"], width, label="Alunos (%)", color=cores[0])
 
     for bars in [bars1, bars2]:
         for bar in bars:
@@ -160,7 +103,7 @@ def plot_comparativo_projecao_realidade(df_leads, df_alunos):
             )
 
     plt.ylabel("")
-    plt.title("Projeção vs Realidade por Faixa", pad=20)
+    plt.title("Leads vs Alunos por Faixa", pad=20)
     plt.xticks(x, labels)
     plt.tick_params(axis='x', length=0)
     plt.yticks([])
@@ -190,7 +133,7 @@ def plot_probabilidade_conversao_vs_score(df_leads):
         - 'score_hibrido': score combinado (ex: classificação + regressão).
     """
     plt.figure(figsize=(10, 5))
-    sns.histplot(df_leads["probabilidade_conversao_calibrada"],
+    sns.histplot(df_leads["probabilidade_conversao_modelo"],
                  bins=30, color=cores[4], label="Prob. Conversão",
                  kde=False, stat="density", edgecolor="black")
 
@@ -202,7 +145,7 @@ def plot_probabilidade_conversao_vs_score(df_leads):
     plt.yticks([])
     plt.xlim(0, 1)
 
-    media_prob = df_leads["probabilidade_conversao_calibrada"].mean()
+    media_prob = df_leads["probabilidade_conversao_modelo"].mean()
     media_hibrido = df_leads["score_hibrido"].mean()
 
     plt.axvline(media_prob, color=cores[4], linestyle='--', label='Média Prob.')
@@ -270,4 +213,4 @@ def plot_histograma_leadscore_alunos(df, limite_a, limite_b, limite_c, limite_d)
 
     ax.legend()
     plt.tight_layout()
-    return fig
+    plt.show()

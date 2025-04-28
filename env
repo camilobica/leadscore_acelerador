@@ -1,4 +1,0 @@
-
-# .env file para armazenar suas credenciais da Hotmart
-CLIENT_ID=seu_client_id_aqui
-CLIENT_SECRET=seu_client_secret_aqui

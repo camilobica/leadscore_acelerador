@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "crafty-water-441015-n8",
+  "private_key_id": "64937e2e78252bfc84dd4e14d84f253488f470c3",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCWCH0VTN4qpYtd\nS4dNnw5n5P59jlkOITo261UY7BNpILLbz1LSG51d9rdr49LO2eAb5vxRKdy4Xfk9\nCLylB7GOzgeyCgAHcIQGr2aDWrS2MzJjpfWpRuIpTv8PgeHk2Bb7zaMVAWtGhHrz\nngcqAnQCrRkREUYFJlyncMQGZlhPO6+qHSSaHBg2LyA7GJ+A5uBUJG1re1STj92e\niOOiQIWh6IMLDUgtlrqg1yM7zSs0Zm8VRk8Ac07a0umWuoS9LX0xvyXwHyfdoE+K\nrMZ6NJZkOqzcq/qUQsgr4/14fhj14djY0bSnQUhfKYs5nhdCB9TkWB0mZUXnngcw\nzSSNdBYnAgMBAAECggEAOaDXEthsuarOpi49sWX37ZY63lVQBapjpvarwB/lsMq7\niMzQvh2XS6FZgNqIfaWYfH8zyaUvv61w762scCNNY1HmCM/ohPMF819qG+g6Y4W0\nxCvZ+YRdmIpcVEOKVhFeeqfZDVd3MiXu6CZ6D/vTPbfpWfHtmErM6g/Za6/iGcR3\nf89SdcjVB5H7kxVc8Ku9WTfOdg34ATwCZIFaHHgEOUnFLWeuUWN7tZMWBEt19FNB\nFuBvOKaJZhZShPceRzUAiYC8lkc5zIjeDA7V2JECspYTeqtUQHXkdT1tAClJEjAi\nD66yg8GKb7/2gAGTb9d3G4lgWLD75LdSWP8Yzq2UoQKBgQDPZWx7XhwMe+Uh7Zhn\nEQwKnf4+rifnOTRWjLJDjxXYW/x3t6KaFOmgs8nrSojus1ZbjZt1Bk9yAB2cYYy0\nzIQL0sKYuw9PJLWLQ373wFDoiC0Q+9ed+mDSKJn5SeaOCVzOLZXoSh+3kGqorQ4Z\ntVMzLbc5vHD7Q0yCT4RPjRfXMQKBgQC5MZ0aJYrskvPqiuAMcVpfNI5X2LqJUT7S\nkuyODl2HMeiFVD3tJbnP85fA2i04TmfgaoQS3Xlwip11M7Kn1oNPMiqMQueYKwDZ\nZq+Fpz1fX9/IrZOaM18RjQR+jBF5YGFSyzL9SQZzk79hd2DcIMQkEVD3aBw2Kc2B\nqcYvUfUc1wKBgQCBKWoxPr/7KmHeCmmirqQwLIs9oBqrzx2AVWlj18XEFC2cpVn3\n2dRSSAYVqjqzZi7/H6bUb9Ska9wFG1+U7dXCw0R79+ul33fMvoFhbH03BDAE5sM2\n2MrZt32FGngit0P8B7nXi+pK2P8EA5rHefzR38O/ilNWuGf6s+jz3iwd0QKBgATw\ngdQ0tCPjN4ZF9fve+h4X9MP7D96hwB81tAGF+JCmkCEeQhiVLQOS57VJHHOoA7VE\nogkuxxJtYA3ENzuqyQ3PtLrQ/gRdAUTLLFtQPp7Qm9NqbclrHVoGfNwzODQYkf/3\nU4DV9coXYr9iw76bUR/1JkezCy2Wp9iRgqu4b+U5AoGBALebQgqG3gtoJXunPZOI\nWVNRINOmPHflNe5RJ0xLaGvGDXjRpm1W0a89keGXoOAtQ2rcFCB+KIAph0QlJf7d\nkV4LomVkU5CO7GOEQ89H20JN/s0xO0lQk3yUKKLnD0rCOLjQldSo8NA1zqI7/Ot0\nqUR2xhIyeyr0Hr+lQKKW3Rt9\n-----END PRIVATE KEY-----\n",
+  "client_email": "consultoria-bi@crafty-water-441015-n8.iam.gserviceaccount.com",
+  "client_id": "101691863355173305370",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/consultoria-bi%40crafty-water-441015-n8.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

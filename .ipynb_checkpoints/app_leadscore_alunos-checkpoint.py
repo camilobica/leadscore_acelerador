@@ -140,32 +140,36 @@ with center:
     st.markdown("### Análise do Modelo Implementado")
     st.markdown("**O leadscore de cada aluno é obtido a partir da multiplicação entre o valor base da resposta `score_base` e o `peso` atribuído à variável. O somatório dos valores ponderados de todas as variáveis resulta no `score_final` do aluno.**")
     
-    renda_pesos_brutos = {
-        "Não tenho renda.": 0,
-        "Até 1.500": 1,
-        "De 1.500 a 2.500": 2,
-        "De 2.500 a 5.000": 4,
-        "De 5.000 a 10.000": 7,
-        "Mais de 10.000": 10
-    }
-    escolaridade_pesos_brutos = {
-        "Fundamental completo": 0,
-        "Médio incompleto": 1,
-        "Médio completo": 2,
-        "Superior incompleto": 4,
-        "Superior completo": 7,
-        "Pós-graduação completa": 10
+    pesos_manualmente_definidos = {
+        "renda_media": {
+            "Não tenho renda.": 0,
+            "Até 1.500": 1,
+            "De 1.500 a 2.500": 2,
+            "De 2.500 a 5.000": 4,
+            "Mais de 10.000": 7,
+            "De 5.000 a 10.000": 10
+        },
+        "escolaridade_categoria": {
+            "Fundamental completo": 0,
+            "Médio incompleto": 1,
+            "Médio completo": 2,
+            "Superior incompleto": 4,
+            "Superior completo": 7,
+            "Pós-graduação completa": 10
+        }
     }
     
     cols_to_analyze = [
-        "escolaridade_categoria", "renda_media", "fala_outro_idioma_categoria", "genero",
-        "nivel_idioma", "onde_acompanha_conteudo", "faixa_etaria",
-        "motivo_fluencia_espanhol_categoria", "problema_aprender_categoria", "profissao_categoria"
+        "genero", "faixa_etaria", "escolaridade_categoria", "renda_media",
+        "tempo_antes_portal", "nivel_idioma", "motivo_fluencia_espanhol_categoria"
     ]
     
-    leadscore_renda = gerar_leadscore_profile(df, cols_to_analyze, "renda_media", renda_pesos_brutos)
-    leadscore_escolaridade = gerar_leadscore_profile(df, cols_to_analyze, "escolaridade_categoria", escolaridade_pesos_brutos)
-    leadscore_df = pd.concat([leadscore_renda, leadscore_escolaridade], axis=0)
+    leadscore_df = gerar_leadscore_profile(
+        df,
+        colunas=cols_to_analyze,
+        pesos_manualmente_definidos=pesos_manualmente_definidos
+    )
+    leadscore_df = pd.concat([leadscore_df], axis=0)
     
     peso_variavel = calcular_pesos_por_variavel(leadscore_df)
     peso_variavel["renda_media"] = 2.0
@@ -349,74 +353,6 @@ with center:
         use_container_width=True,
         hide_index=True
     )
-
-
-# CONFIGURAÇÃO CLUSTERS
-def exibir_perfis_clusters(df_clusterizado, col_cluster="cluster_kmeans"):
-    colunas_excluir = [
-        'email', 'data_inscricao', 'data_nascimento',
-        'pais_categoria', 'estado_categoria', 'como_comprou_portal', 'lancamentos'
-    ]
-
-    cols_to_analyze = [
-        col for col in df_clusterizado.columns
-        if df_clusterizado[col].dtype == "object"
-        and col not in colunas_excluir
-        and col != "leadscore_faixa"  # tira ela do loop
-    ]
-
-    # 1. Calcular média do leadscore por cluster
-    medias_score = (
-        df_clusterizado
-        .groupby(col_cluster)["leadscore_total"]
-        .mean()
-        .sort_values(ascending=False)
-    )
-
-    # 2. Ordenar clusters por média do score
-    clusters_ordenados = medias_score.index.tolist()
-    
-    for i, cluster_id in enumerate(clusters_ordenados, start=1):
-        subset = df_clusterizado[df_clusterizado[col_cluster] == cluster_id]
-        n = len(subset)
-
-        perfil_data = []
-
-        # Média do score
-        media_score = subset["leadscore_total"].mean()
-        perfil_data.append({
-            "variavel": "leadscore_total (média)",
-            "valor": f"{media_score:.2f}"
-        })
-
-        # Variáveis categóricas
-        for col in cols_to_analyze:
-            top_cat = subset[col].value_counts(normalize=True).head(3)
-            valor = "\n".join([f"{k} ({v*100:.1f}%)" for k, v in top_cat.items()])
-            perfil_data.append({"variavel": col, "valor": valor})
-
-        # Faixa do score
-        faixa = subset["leadscore_faixa"].value_counts(normalize=True)
-        faixa_str = "\n".join([f"{k} ({v*100:.1f}%)" for k, v in faixa.items()])
-        perfil_data.append({
-            "variavel": "leadscore_faixa",
-            "valor": faixa_str
-        })
-
-        df_formatado = pd.DataFrame(perfil_data)
-        st.markdown(f"### 🔹 Cluster {i} — Total de {n} alunos")
-        st.dataframe(df_formatado, use_container_width=True, hide_index=True)
-
-
-# === PARTE 6: PERFIL SIMPLIFICADO DOS CLUSTERS ===
-left, center, right = st.columns([0.1, 0.8, 0.1])
-with center:
-    st.markdown("---")
-    st.markdown("### 🔍 Perfis Estratégicos dos Clusters")
-    st.markdown("**Os clusters são grupos de alunos com perfis parecidos, formados com base nas respostas do formulário e no score total. Essa divisão ajuda a identificar padrões de comportamento e permite criar estratégias mais assertivas para cada tipo de aluno.**")
-
-    exibir_perfis_clusters(df)
-
 
 
 
