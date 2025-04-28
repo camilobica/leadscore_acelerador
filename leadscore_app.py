@@ -1,11 +1,17 @@
 # === Imports Padrões ===
+import os
 import joblib
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import gspread
+
 from cycler import cycler
-from pathlib import Path
 from datetime import datetime
+from dotenv import load_dotenv
+from google.oauth2 import service_account
+from gspread_dataframe import get_as_dataframe
+from pathlib import Path
 
 # === Imports dos módulos internos ===
 from notebooks.src.leadscore_plot_app import (
@@ -24,27 +30,42 @@ from notebooks.src.leadscore_tabelas import (
     mostrar_lift_e_calculo_individual
 )
 
-# === Configuração Inicial ===
+# === Configuração Inicial do Streamlit ===
 st.set_page_config(page_title="Leadscore Acelerador", layout="wide")
 
-# === Caminho base ===
-base_path = Path("dados")
+# === Carregar variáveis de ambiente ===
+load_dotenv()
 
-# === Carregar Dados ===
+# === Autenticação Google Sheets ===
+credenciais_path = os.getenv("GOOGLE_CREDENTIALS_PATH")
+scopes = [
+    "https://www.googleapis.com/auth/spreadsheets.readonly",
+    "https://www.googleapis.com/auth/drive.readonly"
+]
+
+creds = service_account.Credentials.from_service_account_file(
+    credenciais_path,
+    scopes=scopes
+)
+client = gspread.authorize(creds)
+
+# === Função para carregar aba da planilha ===
+def carregar_aba(sheet_id, aba_nome="Dados"):
+    planilha = client.open_by_key(sheet_id)
+    aba = planilha.worksheet(aba_nome)
+    dados = aba.get_all_records()
+    return pd.DataFrame(dados)
+
+# === IDs das planilhas (fixos) ===
+id_leadscore_implementado = "1otpSf30y2iqykxNNiCmN3DjxVDTuHSVZhOpzwi8UBBc"  # essa é a nova
+id_invest_trafego = "1477LAemTkMN1YTFdRJkLMaDLPZEiJ3vvtqwduemHXD4"
+
+# === Carregar Dados diretamente do Google Sheets ===
 try:
-    df_leads = pd.read_csv(base_path / "leadscore_implementado.csv")
-    df_invest_trafego = pd.read_csv(base_path / "invest_trafego.csv")
-    
-    # Garantir que tenham as mesmas colunas (no futuro)
-    #colunas_ambas = list(set(df_leads_antigos.columns) | set(df_leads_novos.columns))
-    #df_leads_antigos = df_leads_antigos.reindex(columns=colunas_ambas)
-    #df_leads_novos = df_leads_novos.reindex(columns=colunas_ambas)
-
-    # Unir os leads
-    #df_leads = pd.concat([df_leads_antigos, df_leads_novos], ignore_index=True)
-
-except FileNotFoundError:
-    st.error("Erro ao carregar os dados. Verifique o caminho base.")
+    df_leads = carregar_aba(id_leadscore_implementado)
+    df_invest_trafego = carregar_aba(id_invest_trafego)
+except Exception as e:
+    st.error(f"Erro ao carregar os dados: {e}")
     st.stop()
 
 # === Carregar Configurações salvas ===
