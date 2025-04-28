@@ -36,18 +36,21 @@ st.set_page_config(page_title="Leadscore Acelerador", layout="wide")
 # === Carregar variáveis de ambiente ===
 load_dotenv()
 
-# === Autenticação Google Sheets ===
-credenciais_path = os.getenv("GOOGLE_CREDENTIALS_PATH")
+# === Autenticação Google Sheets via Secrets (sem .json físico) ===
+import json
+
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets.readonly",
     "https://www.googleapis.com/auth/drive.readonly"
 ]
 
-creds = service_account.Credentials.from_service_account_file(
-    credenciais_path,
+service_account_info = json.loads(st.secrets["GOOGLE_SERVICE_ACCOUNT_JSON"])
+creds = service_account.Credentials.from_service_account_info(
+    service_account_info,
     scopes=scopes
 )
 client = gspread.authorize(creds)
+
 
 # === Função para carregar aba da planilha ===
 def carregar_aba(sheet_id, aba_nome="Dados"):
