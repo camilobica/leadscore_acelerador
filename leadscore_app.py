@@ -176,12 +176,11 @@ with aba2:
     st.markdown("""
     O Leadscore foi desenvolvido a partir de variáveis importantes que se correlacionam com a decisão de compra:
     
-    - **Renda Média**
+    - **Renda**
     - **Escolaridade**
-    - **Faixa Etária**
-    - **Nível Idioma**
-    - **Gênero**
-    - **Motivo Fluência**
+    - **Idade**
+    - **Nível**
+    - **Situação Profissional**
 
     A partir dessas variáveis, foi criado um `score ponderado` e os leads foram classificados em faixas **A, B, C, D** de acordo com o potencial de conversão.
     """)
