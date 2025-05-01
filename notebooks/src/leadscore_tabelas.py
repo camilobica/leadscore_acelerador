@@ -49,7 +49,78 @@ def destacar_total_linha(df):
     return df.style.apply(style_rows, axis=1)
 
 
-def top1_utms_por_leads_A(df_leads, colunas_utm=["utm source", "utm campaign", "utm medium", "utm content"]):
+def exibir_tabela_faixa_origem(df_filtrado, df_leads, df_alunos):
+    st.subheader("Distribuição de Leads por Faixa com Origem")
+
+    total_geral = len(df_filtrado)
+    faixas = df_filtrado['leadscore_faixa'].dropna().unique()
+    linhas_1 = []
+    linhas_2 = []
+
+    # Garantir datetime
+    df_leads["data"] = pd.to_datetime(df_leads["data"], errors='coerce')
+    df_alunos["data"] = pd.to_datetime(df_alunos["data"], errors='coerce')
+
+    # Conversão histórica
+    leads_por_faixa_hist = df_leads['leadscore_faixa'].value_counts()
+    alunos_por_faixa_hist = df_alunos['leadscore_faixa'].value_counts()
+    taxa_conversao_por_faixa = (alunos_por_faixa_hist / leads_por_faixa_hist).fillna(0)
+
+    for faixa in sorted(faixas):
+        df_faixa = df_filtrado[df_filtrado['leadscore_faixa'] == faixa]
+        total_faixa = len(df_faixa)
+        perc_faixa = (total_faixa / total_geral * 100) if total_geral else 0
+
+        # UTM Source
+        if not df_faixa['utm_source'].dropna().empty:
+            top_source = df_faixa['utm_source'].value_counts(normalize=True).idxmax()
+            top_source_perc = df_faixa['utm_source'].value_counts(normalize=True).max() * 100
+        else:
+            top_source = "-"
+            top_source_perc = 0
+
+        # UTM Content
+        if not df_faixa['utm_content'].dropna().empty:
+            top_content = df_faixa['utm_content'].value_counts(normalize=True).idxmax()
+            top_content_perc = df_faixa['utm_content'].value_counts(normalize=True).max() * 100
+        else:
+            top_content = "-"
+            top_content_perc = 0
+
+        # Conversão e Projeção
+        conversao_proj = taxa_conversao_por_faixa.get(faixa, 0)
+        projecao_vendas = round(total_faixa * conversao_proj)
+
+        # Coluna 1
+        linhas_1.append({
+            "Faixa": faixa,
+            "Total Leads (%)": f"{total_faixa} ({perc_faixa:.0f}%)",
+            "Histórico de Conversão (%)": f"{conversao_proj * 100:.1f}%",
+            "Projeção de Vendas": projecao_vendas
+        })
+
+        # Coluna 2
+        linhas_2.append({
+            "Faixa": faixa,
+            "UTM Source (Top 1)": f"{top_source} ({top_source_perc:.0f}%)",
+            "UTM Content (Top 1)": f"{top_content} ({top_content_perc:.0f}%)"
+        })
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("**📊 Conversão e Projeção**")
+        df1 = pd.DataFrame(linhas_1)
+        st.dataframe(df1, use_container_width=True, hide_index=True)
+
+    with col2:
+        st.markdown("**📍 Principais Origens (UTMs)**")
+        df2 = pd.DataFrame(linhas_2)
+        st.dataframe(df2, use_container_width=True, hide_index=True)
+
+
+
+def top1_utms_por_leads_A(df_leads, colunas_utm=["utm_source", "utm_campaign", "utm_medium", "utm_content"]):
     resultados = {}
     for coluna in colunas_utm:
         if coluna in df_leads.columns:
@@ -66,25 +137,46 @@ def top1_utms_por_leads_A(df_leads, colunas_utm=["utm source", "utm campaign", "
     return resultados
 
 
-def analisar_utms(df_leads, df_invest_trafego=None):
-    colunas_utm = ["utm source", "utm campaign", "utm medium", "utm content"]
+def analisar_utms(df_base_filtrado):
+    colunas_utm = ["utm_source", "utm_campaign", "utm_medium", "utm_content"]
+
+    st.markdown("""
+        <style>
+            div[data-testid="stSelectbox"] {
+                width: 250px;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    df_filtrado = df_base_filtrado.copy()
 
     for coluna in colunas_utm:
-        st.markdown(coluna.upper())
-
-        if coluna not in df_leads.columns:
+        if coluna not in df_filtrado.columns:
             st.warning(f"⚠️ Atenção: coluna '{coluna}' não encontrada no DataFrame!")
             continue
 
+        valores_unicos = df_filtrado[coluna].dropna().unique()
+        valores_opcoes = ["Todos"] + sorted(valores_unicos.tolist())
+
+        col1, _ = st.columns([1.5, 4.5])
+        with col1:
+            st.markdown(
+                f"<div style='font-size:16px; margin-top: 20px; margin-bottom: -30px;'>Selecione qual <b>{coluna.replace('_', ' ').title()}</b> deseja filtrar:</div>",
+                unsafe_allow_html=True
+            )
+            filtro_selecionado = st.selectbox("\u2800", valores_opcoes, key=f"select_{coluna}")
+
+        if filtro_selecionado != "Todos":
+            df_filtrado = df_filtrado[df_filtrado[coluna] == filtro_selecionado]
+
         tabela_utm = (
-            df_leads
+            df_filtrado
             .groupby([coluna, "leadscore_faixa"])
             .size()
             .unstack(fill_value=0)
         )
 
-        df_leads_compradores = df_leads[df_leads["comprou"] == 1]
-
+        df_leads_compradores = df_filtrado[df_filtrado["comprou"] == 1]
         tabela_utm_compradores = (
             df_leads_compradores
             .groupby([coluna, "leadscore_faixa"])
@@ -92,88 +184,41 @@ def analisar_utms(df_leads, df_invest_trafego=None):
             .unstack(fill_value=0)
         ).reindex(tabela_utm.index, fill_value=0)
 
-        taxa_conversao = (tabela_utm_compradores / tabela_utm).fillna(0) * 100
-        percentuais_utm = (tabela_utm.T / tabela_utm.sum(axis=1)).T * 100
+        percentuais_utm = tabela_utm / tabela_utm.sum(axis=0) * 100
+        filtro_valido = (tabela_utm.sum(axis=1) >= 5)
 
-        # FILTRAR AQUI ANTES de misturar
-        filtro_valido = (tabela_utm["A"] >= 10) & (tabela_utm["B"] >= 10) & (tabela_utm["C"] >= 10) & (tabela_utm["D"] >= 10)
         tabela_utm = tabela_utm[filtro_valido]
-        tabela_utm_compradores = tabela_utm_compradores.reindex(tabela_utm.index, fill_value=0)
-        taxa_conversao = taxa_conversao.reindex(tabela_utm.index, fill_value=0)
         percentuais_utm = percentuais_utm.reindex(tabela_utm.index, fill_value=0)
 
-        tabela_final = pd.concat(
-            [tabela_utm, percentuais_utm.add_suffix(" (%)"), taxa_conversao.add_suffix(" (tx conv)")],
-            axis=1
-        )
+        tabela_final = pd.DataFrame(index=tabela_utm.index)
 
-        # Combinar quantidade + percentual
         for faixa in ["A", "B", "C", "D"]:
-            if faixa in tabela_final.columns and f"{faixa} (%)" in tabela_final.columns:
-                tabela_final[faixa] = tabela_final.apply(
-                    lambda row: f"{int(row[faixa]):,}".replace(",", ".") + f" ({row[f'{faixa} (%)']:.1f}%)", axis=1
+            if faixa in tabela_utm.columns:
+                tabela_final[faixa] = tabela_utm.apply(
+                    lambda row: f"{int(row[faixa]):,}".replace(",", ".") + f" ({percentuais_utm.loc[row.name, faixa]:.1f}%)",
+                    axis=1
                 )
-                tabela_final.drop(columns=[f"{faixa} (%)"], inplace=True)
 
-        total_leads = tabela_utm.sum(axis=1)
-        total_alunos = tabela_utm_compradores.sum(axis=1)
-        tabela_final['conversao_final'] = (total_alunos / total_leads * 100).round(2)
+        if tabela_final.empty:
+            st.info(f"Nenhum dado encontrado para a UTM **{coluna}** com os filtros aplicados.")
+            continue
 
-        if coluna != "utm source" and df_invest_trafego is not None:
-            spend_total = df_invest_trafego.groupby(coluna)['spend'].sum()
-            tabela_final['spend_total'] = tabela_final.index.map(spend_total)
-            tabela_final['spend_total'] = tabela_final['spend_total'].apply(
-                lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if pd.notna(x) else x
-            )
+        # Ordenar pela coluna A (valor absoluto antes do parêntese)
+        if "A" in tabela_final.columns:
+            tabela_final["_sort"] = tabela_final["A"].str.extract(r"(\d+)\s+\(")[0].astype(int)
+            tabela_final = tabela_final.sort_values("_sort", ascending=False).drop(columns=["_sort"])
+
+        def destacar_top_15_absolutos(col_vals):
+            # Extrai apenas o número antes do parêntese
+            valores = col_vals.str.extract(r'(\d+)\s+\(')[0].astype(int)
+            limiar = valores.quantile(0.85)
         
-        rename_dict = {
-            'A_conversao': 'A (tx conv)',
-            'B_conversao': 'B (tx conv)',
-            'C_conversao': 'C (tx conv)',
-            'D_conversao': 'D (tx conv)',
-        }
-        tabela_final = tabela_final.rename(columns=rename_dict)
+            return ['color: green;' if v >= limiar else '' for v in valores]
 
-        nova_ordem = [
-            "A", "A (tx conv)",
-            "B", "B (tx conv)",
-            "C", "C (tx conv)",
-            "D", "D (tx conv)",
-            "conversao_final", "spend_total"
-        ]
-        colunas_existentes = [col for col in nova_ordem if col in tabela_final.columns]
-        tabela_final = tabela_final[colunas_existentes]
-
-        # Formatar colunas de taxa de conversão (%) para o formato percentual com vírgula
-        for faixa in ["A", "B", "C", "D"]:
-            col_tx_conv = f"{faixa} (tx conv)"
-            if col_tx_conv in tabela_final.columns:
-                tabela_final[col_tx_conv] = tabela_final[col_tx_conv].apply(
-                    lambda x: f"{x:.2f}".replace(".", ",") + "%"
-                )
-
-        if "A (tx conv)" in tabela_final.columns:
-            tabela_final = tabela_final.sort_values("A (tx conv)", ascending=False)
-
-        styled = tabela_final.style.format(
-            {col: "{:.2f}" for col in tabela_final.select_dtypes(include=['float', 'float64']).columns if col != 'spend_total'}
-        )
-
-        # Aplicar cores verdes nas melhores taxas
-        for col in ["A (tx conv)", "B (tx conv)"]:
+        styled = tabela_final.style
+        for col in ["A", "B"]:
             if col in tabela_final.columns:
-                styled = styled.apply(
-                    lambda col_vals: [
-                        'color: green;' if v.replace(",", ".").replace("%", "") and float(v.replace(",", ".").replace("%", "")) >= 
-                        pd.Series([float(x.replace(",", ".").replace("%", "")) for x in col_vals]).quantile(0.70)
-                        else ''
-                        for v in col_vals
-                    ],
-                    subset=[col]
-                )
-
-        if 'spend_total' in tabela_final.columns:
-            styled = styled.applymap(lambda v: 'color: red;' if isinstance(v, str) and v.startswith('R$') else '', subset=['spend_total'])
+                styled = styled.apply(destacar_top_15_absolutos, subset=[col])
 
         st.dataframe(styled, use_container_width=True)
 
@@ -209,8 +254,16 @@ def gerar_tabela_estatisticas_leadscore(df_leads):
     resumo_df["Média"] = resumo_df["Média"].round(2)
 
     st.markdown("#### Estatísticas do Leadscore")
-    st.dataframe(resumo_df, hide_index=True, use_container_width=True)
-    
+    st.dataframe(
+        resumo_df.style.format({
+            "Mínimo": "{:.2f}",
+            "Máximo": "{:.2f}",
+            "Média": "{:.2f}"
+        }),
+        hide_index=True,
+        use_container_width=True
+    )
+
 
 def detalhar_leadscore_por_variavel(df, indice, score_map):
     row = df.iloc[indice]
@@ -271,56 +324,35 @@ def gerar_comparativo_faixas(df_leads):
         else:
             return "color: gray"
 
-    # Comparacoes
+    # Função para formatar e exibir
+    def formatar_e_mostrar(df, faixa1, faixa2, cor_emoji):
+        col_diff = f"diferença entre {faixa1} e {faixa2}"
+        st.markdown(f"{cor_emoji} **Diferenças entre Faixa {faixa1} e {faixa2}**")
+
+        df_temp = df.copy().head(15).reset_index(drop=True)
+
+        styled = (
+            df_temp
+            .style
+            .format({
+                f"% {faixa1}": "{:.1f}",
+                f"% {faixa2}": "{:.1f}",
+                col_diff: "{:.2f}"
+            })
+            .applymap(colorir_diferenca, subset=[col_diff])
+        )
+
+        st.dataframe(styled, use_container_width=True, hide_index=True)
+
+    # Comparações
     comparacao_ab = comparar_faixas(df_leads, cols_to_analyze, "A", "B")
     comparacao_bc = comparar_faixas(df_leads, cols_to_analyze, "B", "C")
     comparacao_cd = comparar_faixas(df_leads, cols_to_analyze, "C", "D")
 
-    # Mostrar resultados
-    st.markdown("🟢 **Diferenças entre Faixa A e B**")
-    st.dataframe(
-        comparacao_ab.head(15)
-        .reset_index(drop=True)
-        .style
-        .format({
-            "% A": "{:.1f}",
-            "% B": "{:.1f}",
-            "diferença entre A e B": "{:.2f}"
-        })
-        .applymap(colorir_diferenca, subset=["diferença entre A e B"]),
-        use_container_width=True,
-        hide_index=True
-    )
-
-    st.markdown("🟡 **Diferenças entre Faixa B e C**")
-    st.dataframe(
-        comparacao_bc.head(15)
-        .reset_index(drop=True)
-        .style
-        .format({
-            "% B": "{:.1f}",
-            "% C": "{:.1f}",
-            "diferença entre B e C": "{:.2f}"
-        })
-        .applymap(colorir_diferenca, subset=["diferença entre B e C"]),
-        use_container_width=True,
-        hide_index=True
-    )
-
-    st.markdown("🔴 **Diferenças entre Faixa C e D**")
-    st.dataframe(
-        comparacao_cd.head(15)
-        .reset_index(drop=True)
-        .style
-        .format({
-            "% C": "{:.1f}",
-            "% D": "{:.1f}",
-            "diferença entre C e D": "{:.2f}"
-        })
-        .applymap(colorir_diferenca, subset=["diferença entre C e D"]),
-        use_container_width=True,
-        hide_index=True
-    )
+    # Mostrar
+    formatar_e_mostrar(comparacao_ab, "A", "B", "🟢")
+    formatar_e_mostrar(comparacao_bc, "B", "C", "🟡")
+    formatar_e_mostrar(comparacao_cd, "C", "D", "🔴")
 
 
 def gerar_tabela_distribuicao_categorias(df_leads):
@@ -376,20 +408,45 @@ def mostrar_lift_e_calculo_individual(tabelas_lift, df_leads, score_map, limites
             "Escolha a variável para ver o Lift calculado:",
             options=list(tabelas_lift.keys())
         )
-
+    
         if variavel_selecionada:
-            tabela = tabelas_lift[variavel_selecionada]
+            tabela = tabelas_lift[variavel_selecionada].copy()
 
-            # Apenas exibindo a tabela já salva, sem modificar nada
-            st.dataframe(tabela.reset_index(), use_container_width=True, hide_index=True)
+            # Calcular totais das colunas numéricas (ignorando percentual e lift/score)
+            colunas_soma = ["qtd_leads", "qtd_alunos"]
+            totais = tabela[colunas_soma].sum().to_frame().T
+            totais.index = ["Total"]
+
+            # Preencher as demais colunas com "-"
+            for col in tabela.columns:
+                if col not in totais.columns:
+                    totais[col] = "-"
+
+            # Concatenar total
+            tabela_total = pd.concat([tabela, totais], axis=0)
+
+            # Mostrar no Streamlit
+            st.dataframe(tabela_total, use_container_width=True)
 
     with col2:
+        lancamentos = ["Todos"] + sorted(df_leads["lancamentos"].dropna().unique())
+        filtro_lancamento = st.selectbox("Selecione o Lançamento para visualizar os Leads:", lancamentos)
+
+        df_filtrado = df_leads if filtro_lancamento == "Todos" else df_leads[df_leads["lancamentos"] == filtro_lancamento]
+
+        if df_filtrado.empty:
+            st.warning("⚠️ Nenhum lead disponível para esse lançamento.")
+            return
+
+        st.caption(f"📊 Total de leads disponíveis: {len(df_filtrado):,}")
+
         indice = st.number_input(
             "Selecione o ID do Lead para visualizar o cálculo de Leadscore sendo aplicado:",
-            min_value=0, max_value=len(df_leads)-1, value=0, step=1
+            min_value=0, max_value=len(df_filtrado) - 1,
+            value=0, step=1
         )
 
-        detalhes = detalhar_leadscore_por_variavel(df_leads, indice, score_map)
+        detalhes = detalhar_leadscore_por_variavel(df_filtrado, indice, score_map)
         st.dataframe(detalhes, use_container_width=True, hide_index=True)
 
         score_calc = detalhes["Score"].sum()
