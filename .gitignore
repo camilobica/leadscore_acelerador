@@ -179,3 +179,6 @@ secrets/
 
 # Arquivos de ambiente
 .env
+
+.streamlit/secrets.toml
+
