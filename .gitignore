@@ -182,3 +182,8 @@ secrets/
 
 .streamlit/secrets.toml
 
+# Arquivos locais de automação
+*.bat
+
+# Logs locais
+logs/

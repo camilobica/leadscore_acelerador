@@ -91,14 +91,26 @@ cores = plt.get_cmap('Accent').colors
 ciclo_cores = cycler('color', cores)
 plt.rc('axes', prop_cycle=ciclo_cores)
 
+# === Adicionar o horário de atualização do painel ===
+from datetime import datetime
+
+try:
+    with open("ultima_atualizacao.txt", "r") as f:
+        texto = f.read().strip()
+        dt = datetime.strptime(texto, "%Y-%m-%d %H:%M:%S")
+        data_atualizacao_formatada = dt.strftime("%d/%m/%Y %H:%M")
+except Exception as e:
+    data_atualizacao_formatada = "Desconhecida"
+    st.error(f"[ERRO ao ler data de atualização]: {e}")
+
 # === Interface ===
 aba1, aba2 = st.tabs(["📈 Leadscore Acelerador", "🧮 Como Calculamos o Leadscore"])
 
 # === Aba 1: Lançamentos Anteriores ===
 with aba1:
     st.title("📈 Leadscore Acelerador")
-    st.markdown(f"**Última atualização:** {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-    
+    st.markdown(f"**Última atualização:** {data_atualizacao_formatada}")
+
     # Layout compacto: cada filtro ocupa 1/5 da largura
     col_lancamento, col_data, _ = st.columns([1, 1, 3])
     
@@ -172,7 +184,8 @@ with aba1:
 # === Aba 2: Como Calculamos ===
 with aba2:
     st.title("🧮 Como Calculamos o Leadscore")
-    st.markdown(f"**Última atualização:** {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+    st.markdown(f"**Última atualização:** {data_atualizacao_formatada}")
+
     st.markdown("""
     O Leadscore foi desenvolvido a partir de variáveis importantes que se correlacionam com a decisão de compra:
     
