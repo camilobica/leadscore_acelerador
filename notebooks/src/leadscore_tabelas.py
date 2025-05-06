@@ -120,7 +120,7 @@ def exibir_tabela_faixa_origem(df_filtrado, df_leads, df_alunos):
 
 
 
-def top1_utms_por_leads_A(df_leads, colunas_utm=["utm_source", "utm_campaign", "utm_medium", "utm_content"]):
+def top1_utms_por_leads_A(df_leads, colunas_utm=["utm_source", "utm_campaign", "utm_medium", "utm_content", "utm_term"]):
     resultados = {}
     for coluna in colunas_utm:
         if coluna in df_leads.columns:
@@ -138,7 +138,7 @@ def top1_utms_por_leads_A(df_leads, colunas_utm=["utm_source", "utm_campaign", "
 
 
 def analisar_utms(df_base_filtrado):
-    colunas_utm = ["utm_source", "utm_campaign", "utm_medium", "utm_content"]
+    colunas_utm = ["utm_source", "utm_campaign", "utm_medium", "utm_content", "utm_term"]
 
     st.markdown("""
         <style>
