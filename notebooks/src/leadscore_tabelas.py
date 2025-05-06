@@ -120,7 +120,7 @@ def exibir_tabela_faixa_origem(df_filtrado, df_leads, df_alunos):
 
 
 
-def top1_utms_por_leads_A(df_leads, colunas_utm=["utm_source", "utm_campaign", "utm_medium", "utm_content", "utm_term"]):
+def top1_utms_por_leads_A(df_leads, colunas_utm=["utm_source", "utm_campaign", "utm_medium", "utm_content"]):
     resultados = {}
     for coluna in colunas_utm:
         if coluna in df_leads.columns:
@@ -138,7 +138,7 @@ def top1_utms_por_leads_A(df_leads, colunas_utm=["utm_source", "utm_campaign", "
 
 
 def analisar_utms(df_base_filtrado):
-    colunas_utm = ["utm_source", "utm_campaign", "utm_medium", "utm_content", "utm_term"]
+    colunas_utm = ["utm_source", "utm_campaign", "utm_medium", "utm_content"]
 
     st.markdown("""
         <style>
@@ -184,7 +184,7 @@ def analisar_utms(df_base_filtrado):
             .unstack(fill_value=0)
         ).reindex(tabela_utm.index, fill_value=0)
 
-        percentuais_utm = tabela_utm / tabela_utm.sum(axis=0) * 100
+        percentuais_utm = tabela_utm.div(tabela_utm.sum(axis=1), axis=0) * 100  # ← POR LINHA (correto pra você)
         filtro_valido = (tabela_utm.sum(axis=1) >= 5)
 
         tabela_utm = tabela_utm[filtro_valido]
