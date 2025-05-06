@@ -73,7 +73,7 @@ try:
     df_invest_trafego = carregar_aba(id_invest_trafego)
     df_leads['data'] = pd.to_datetime(df_leads['data'], errors='coerce')
 
-    df_leads_antigos = df_leads[df_leads["lancamentos"] == "SSP-L12"]
+    df_leads_antigos = df_leads[df_leads["lancamentos"] != "SSP-L13"]
     df_leads_novos = df_leads[df_leads["lancamentos"] == "SSP-L13"]
     
 except Exception as e:
