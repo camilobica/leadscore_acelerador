@@ -137,90 +137,91 @@ def top1_utms_por_leads_A(df_leads, colunas_utm=["utm_source", "utm_campaign", "
     return resultados
 
 
-def analisar_utms(df_base_filtrado):
+def exibir_tabela_utms_por_source(df_base):
+    import streamlit as st
     colunas_utm = ["utm_source", "utm_campaign", "utm_medium", "utm_content"]
+    colunas_utm_sem_source = ["utm_campaign", "utm_medium", "utm_content"]
 
-    st.markdown("""
-        <style>
-            div[data-testid="stSelectbox"] {
-                width: 250px;
-            }
-        </style>
-    """, unsafe_allow_html=True)
+    filtro_por_source = {
+        "Facebook-Ads": "utm_campaign",
+        "Instagram": "utm_medium",
+        "Youtube": "utm_medium",
+        "Tiktok": "utm_medium"
+    }
 
-    df_filtrado = df_base_filtrado.copy()
+    df_base = df_base.copy()
+    df_base['Campanhas'] = df_base[colunas_utm_sem_source] \
+        .fillna('') \
+        .applymap(lambda x: '' if str(x).strip().lower() == "nan" else str(x).strip()) \
+        .agg(' | '.join, axis=1)
 
-    for coluna in colunas_utm:
-        if coluna not in df_filtrado.columns:
-            st.warning(f"⚠️ Atenção: coluna '{coluna}' não encontrada no DataFrame!")
-            continue
+    fontes = df_base["utm_source"].dropna().astype(str)
+    fontes = fontes[~fontes.str.strip().isin(["", "nan", "fb"])]
+    fontes = fontes.unique().tolist()
 
-        valores_unicos = df_filtrado[coluna].dropna().unique()
-        valores_opcoes = ["Todos"] + sorted(valores_unicos.tolist())
+    # Priorizar metaads no topo
+    fontes = ["Facebook-Ads"] + sorted([f for f in fontes if f != "Facebook-Ads"])
 
-        col1, _ = st.columns([1.5, 4.5])
-        with col1:
-            st.markdown(
-                f"<div style='font-size:16px; margin-top: 20px; margin-bottom: -30px;'>Selecione qual <b>{coluna.replace('_', ' ').title()}</b> deseja filtrar:</div>",
-                unsafe_allow_html=True
-            )
-            filtro_selecionado = st.selectbox("\u2800", valores_opcoes, key=f"select_{coluna}")
+    def destacar_top_20_abs(col_vals, cor):
+        abs_vals = col_vals.str.extract(r"(\d+)\s+\(")[0].astype(float)
+        limiar = abs_vals.quantile(0.95)
+        if limiar == 0:
+            return ['' for _ in abs_vals]
+        return [f'color: {cor};' if v >= limiar else '' for v in abs_vals]
 
-        if filtro_selecionado != "Todos":
-            df_filtrado = df_filtrado[df_filtrado[coluna] == filtro_selecionado]
+    for fonte in fontes:
+        st.markdown(f"### 🔹 UTM Source: `{fonte}`")
+        df_grupo = df_base[df_base["utm_source"] == fonte]
 
-        tabela_utm = (
-            df_filtrado
-            .groupby([coluna, "leadscore_faixa"])
-            .size()
-            .unstack(fill_value=0)
-        )
+        coluna_filtro = filtro_por_source.get(fonte)
 
-        df_leads_compradores = df_filtrado[df_filtrado["comprou"] == 1]
-        tabela_utm_compradores = (
-            df_leads_compradores
-            .groupby([coluna, "leadscore_faixa"])
-            .size()
-            .unstack(fill_value=0)
-        ).reindex(tabela_utm.index, fill_value=0)
-
-        percentuais_utm = tabela_utm.div(tabela_utm.sum(axis=1), axis=0) * 100  # ← POR LINHA (correto pra você)
-        filtro_valido = (tabela_utm.sum(axis=1) >= 5)
-
-        tabela_utm = tabela_utm[filtro_valido]
-        percentuais_utm = percentuais_utm.reindex(tabela_utm.index, fill_value=0)
-
-        tabela_final = pd.DataFrame(index=tabela_utm.index)
-
-        for faixa in ["A", "B", "C", "D"]:
-            if faixa in tabela_utm.columns:
-                tabela_final[faixa] = tabela_utm.apply(
-                    lambda row: f"{int(row[faixa]):,}".replace(",", ".") + f" ({percentuais_utm.loc[row.name, faixa]:.1f}%)",
-                    axis=1
+        if coluna_filtro and coluna_filtro in df_grupo.columns:
+            st.markdown(f"Filtrar por `{coluna_filtro}` em `{fonte}`:")
+            col_filtro, _ = st.columns([3, 5])
+            with col_filtro:
+                opcoes = df_grupo[coluna_filtro].dropna().unique()
+                filtro_valor = st.selectbox(
+                    label="",
+                    options=["Todas"] + sorted(opcoes),
+                    key=f"{fonte}_{coluna_filtro}"
                 )
 
-        if tabela_final.empty:
-            st.info(f"Nenhum dado encontrado para a UTM **{coluna}** com os filtros aplicados.")
+            if filtro_valor != "Todas":
+                df_grupo = df_grupo[df_grupo[coluna_filtro] == filtro_valor]
+
+        if df_grupo.empty:
+            st.info("Nenhum dado para esta combinação.")
             continue
 
-        # Ordenar pela coluna A (valor absoluto antes do parêntese)
-        if "A" in tabela_final.columns:
-            tabela_final["_sort"] = tabela_final["A"].str.extract(r"(\d+)\s+\(")[0].astype(int)
-            tabela_final = tabela_final.sort_values("_sort", ascending=False).drop(columns=["_sort"])
+        dist = df_grupo.groupby(["Campanhas", "leadscore_faixa"]).size().unstack(fill_value=0)
+        dist["Total"] = dist.sum(axis=1)
 
-        def destacar_top_15_absolutos(col_vals):
-            # Extrai apenas o número antes do parêntese
-            valores = col_vals.str.extract(r'(\d+)\s+\(')[0].astype(int)
-            limiar = valores.quantile(0.85)
-        
-            return ['color: green;' if v >= limiar else '' for v in valores]
+        percentuais = (dist.drop(columns="Total").T / dist["Total"]).T * 100
+        combinado = dist.drop(columns="Total").astype(str) + " (" + percentuais.round(1).astype(str) + "%)"
+        combinado["Total"] = dist["Total"]
 
-        styled = tabela_final.style
+        # Ordenar por A
+        if "A" in combinado.columns:
+            combinado["_ordem"] = combinado["A"].str.extract(r"(\d+)\s+\(")[0].fillna(0).astype(float)
+            combinado = combinado.sort_values(by="_ordem", ascending=False)
+            combinado.drop(columns=["_ordem"], inplace=True)
+
+        # Linha TOTAL GERAL
+        soma_col = dist.sum()
+        linha_total = soma_col.drop("Total").astype(int).astype(str) + " (" + \
+                      (soma_col.drop("Total") / soma_col["Total"] * 100).round(1).astype(str) + "%)"
+        linha_total["Total"] = int(soma_col["Total"])
+        combinado.loc["TOTAL GERAL"] = linha_total
+
+        styled = combinado.style
         for col in ["A", "B"]:
-            if col in tabela_final.columns:
-                styled = styled.apply(destacar_top_15_absolutos, subset=[col])
+            if col in combinado.columns:
+                styled = styled.apply(lambda s: destacar_top_20_abs(s, cor="green"), subset=[col])
+        if "D" in combinado.columns:
+            styled = styled.apply(lambda s: destacar_top_20_abs(s, cor="red"), subset=["D"])
 
         st.dataframe(styled, use_container_width=True)
+        
 
 
 def gerar_tabela_estatisticas_leadscore(df_leads):

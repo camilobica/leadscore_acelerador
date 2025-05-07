@@ -25,7 +25,7 @@ from notebooks.src.leadscore_tabelas import (
     gerar_tabela_faixas_leads_alunos,
     destacar_total_linha,
     top1_utms_por_leads_A,
-    analisar_utms,
+    exibir_tabela_utms_por_source,
     gerar_tabela_estatisticas_leadscore,
     detalhar_leadscore_por_variavel,
     gerar_comparativo_faixas,
@@ -129,12 +129,17 @@ with aba1:
         )
     
     # Filtrar dados antes de calcular datas mínimas e máximas
-    df_filtrado = df_leads.copy()
+    df_filtrado = df_leads[df_leads["lancamentos"] == filtro_lancamento].copy()
     if filtro_lancamento != "Todos":
         df_filtrado = df_filtrado[df_filtrado["lancamentos"] == filtro_lancamento]
     
-    # calcular datas do lançamento filtrado
-    data_min = df_filtrado['data'].min().date()
+    # Para L3-25 fixar a data mínima; para os demais, pegar a mínima real
+    if filtro_lancamento == "SSP-L13":
+        data_min = pd.to_datetime("2025-04-30").date()
+    else:
+        data_min = df_filtrado['data'].min().date()
+    
+    # Máxima segue igual para todos
     data_max = df_filtrado['data'].max().date()
     
     with col_data:
@@ -154,11 +159,16 @@ with aba1:
             (df_filtrado['data'].dt.date <= data_fim)
         ]
 
+    # === Aplicar filtro extra de data mínima SOMENTE para o L3-25 ===
+    if filtro_lancamento == "SSP-L13":
+        data_limite = pd.to_datetime("2025-04-30")
+        df_filtrado = df_filtrado[df_filtrado["data"] >= data_limite]
+
     df_alunos_filtrado = df_alunos.copy()
     if filtro_lancamento != "Todos":
         df_alunos_filtrado = df_alunos_filtrado[df_alunos_filtrado["lancamentos"] == filtro_lancamento]
 
-    if 'data_inscricao' in df_alunos_filtrado.columns:
+    if 'data' in df_alunos_filtrado.columns:
         df_alunos_filtrado['data'] = pd.to_datetime(df_alunos_filtrado['data'], errors='coerce')
         df_alunos_filtrado = df_alunos_filtrado[
             (df_alunos_filtrado['data'].dt.date >= df_filtrado['data'].min().date()) &
@@ -178,7 +188,7 @@ with aba1:
     st.markdown("---")
     st.subheader("Análise Detalhada de Conversão - UTM's")
     plot_utm_source_por_faixa(df_filtrado)
-    analisar_utms(df_filtrado)
+    exibir_tabela_utms_por_source(df_filtrado)
 
 
 # === Aba 2: Como Calculamos ===
