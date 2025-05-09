@@ -50,74 +50,67 @@ def destacar_total_linha(df):
 
 
 def exibir_tabela_faixa_origem(df_filtrado, df_leads, df_alunos):
+    import pandas as pd
+    import streamlit as st
+
     st.subheader("Distribuição de Leads por Faixa com Origem")
+
+    colunas_leadscore = ["renda", "escolaridade", "idade", "nível", "situação profissional"]
+
+    # Garantir datetime
+    df_leads["data"] = pd.to_datetime(df_leads["data"], errors='coerce')
+    df_alunos["data"] = pd.to_datetime(df_alunos["data"], errors='coerce')
+
+    # Conversão histórica sem leads do lançamento atual
+    df_leads_filtrado = df_leads[~df_leads['utm_campaign'].astype(str).str.contains("SSP-L13", case=False, na=False)]
+    leads_por_faixa_hist = df_leads_filtrado['leadscore_faixa'].value_counts()
+    alunos_por_faixa_hist = df_alunos['leadscore_faixa'].value_counts()
+    taxa_conversao_por_faixa = (alunos_por_faixa_hist / leads_por_faixa_hist).fillna(0)
 
     total_geral = len(df_filtrado)
     faixas = df_filtrado['leadscore_faixa'].dropna().unique()
     linhas_1 = []
     linhas_2 = []
 
-    # Garantir datetime
-    df_leads["data"] = pd.to_datetime(df_leads["data"], errors='coerce')
-    df_alunos["data"] = pd.to_datetime(df_alunos["data"], errors='coerce')
-
-    # Conversão histórica
-    leads_por_faixa_hist = df_leads['leadscore_faixa'].value_counts()
-    alunos_por_faixa_hist = df_alunos['leadscore_faixa'].value_counts()
-    taxa_conversao_por_faixa = (alunos_por_faixa_hist / leads_por_faixa_hist).fillna(0)
-
     for faixa in sorted(faixas):
         df_faixa = df_filtrado[df_filtrado['leadscore_faixa'] == faixa]
         total_faixa = len(df_faixa)
         perc_faixa = (total_faixa / total_geral * 100) if total_geral else 0
 
-        # UTM Source
-        if not df_faixa['utm_source'].dropna().empty:
-            top_source = df_faixa['utm_source'].value_counts(normalize=True).idxmax()
-            top_source_perc = df_faixa['utm_source'].value_counts(normalize=True).max() * 100
-        else:
-            top_source = "-"
-            top_source_perc = 0
-
-        # UTM Content
-        if not df_faixa['utm_content'].dropna().empty:
-            top_content = df_faixa['utm_content'].value_counts(normalize=True).idxmax()
-            top_content_perc = df_faixa['utm_content'].value_counts(normalize=True).max() * 100
-        else:
-            top_content = "-"
-            top_content_perc = 0
-
-        # Conversão e Projeção
         conversao_proj = taxa_conversao_por_faixa.get(faixa, 0)
         projecao_vendas = round(total_faixa * conversao_proj)
 
-        # Coluna 1
-        linhas_1.append({
+        # Tabela da esquerda
+        linha_1 = {
             "Faixa": faixa,
             "Total Leads (%)": f"{total_faixa} ({perc_faixa:.0f}%)",
             "Histórico de Conversão (%)": f"{conversao_proj * 100:.1f}%",
             "Projeção de Vendas": projecao_vendas
-        })
+        }
+        linhas_1.append(linha_1)
 
-        # Coluna 2
-        linhas_2.append({
-            "Faixa": faixa,
-            "UTM Source (Top 1)": f"{top_source} ({top_source_perc:.0f}%)",
-            "UTM Content (Top 1)": f"{top_content} ({top_content_perc:.0f}%)"
-        })
+        # Tabela da direita
+        linha_2 = {"Faixa": faixa}
+        for col in colunas_leadscore:
+            if col in df_faixa.columns:
+                valor_top = df_faixa[col].value_counts(normalize=False).idxmax()
+                valor_total = df_faixa[col].value_counts().max()
+                perc = (valor_total / total_faixa * 100) if total_faixa else 0
+                linha_2[f"{col.title()} (Top 1)"] = f"{valor_top} ({perc:.0f}%)"
+        linhas_2.append(linha_2)
+
+    df_1 = pd.DataFrame(linhas_1)
+    df_2 = pd.DataFrame(linhas_2)
 
     col1, col2 = st.columns(2)
 
     with col1:
         st.markdown("**📊 Conversão e Projeção**")
-        df1 = pd.DataFrame(linhas_1)
-        st.dataframe(df1, use_container_width=True, hide_index=True)
+        st.dataframe(df_1, use_container_width=True, hide_index=True)
 
     with col2:
-        st.markdown("**📍 Principais Origens (UTMs)**")
-        df2 = pd.DataFrame(linhas_2)
-        st.dataframe(df2, use_container_width=True, hide_index=True)
-
+        st.markdown("**🧩 Características Principais por Faixa**")
+        st.dataframe(df_2, use_container_width=True, hide_index=True)
 
 
 def top1_utms_por_leads_A(df_leads, colunas_utm=["utm_source", "utm_campaign", "utm_medium", "utm_content"]):
@@ -149,6 +142,11 @@ def exibir_tabela_utms_por_source(df_base):
         "Tiktok": "utm_medium"
     }
 
+    # Remover linhas onde todos os campos utm_campaign, utm_medium, utm_content estão vazios ou nulos
+    df_base = df_base[~df_base[colunas_utm_sem_source].apply(lambda row: row.isna().all() or row.eq('').all(), axis=1)]
+    # Remover linhas com placeholders do Meta (ex: {{campaign.name}})
+    df_base = df_base[~df_base[colunas_utm_sem_source].apply(lambda row: row.astype(str).str.contains(r"\{\{.*?\}\}").any(), axis=1)]
+    
     df_base = df_base.copy()
     df_base['Campanhas'] = df_base[colunas_utm_sem_source] \
         .fillna('') \
@@ -161,13 +159,29 @@ def exibir_tabela_utms_por_source(df_base):
 
     # Priorizar metaads no topo
     fontes = ["Facebook-Ads"] + sorted([f for f in fontes if f != "Facebook-Ads"])
-
-    def destacar_top_20_abs(col_vals, cor):
-        abs_vals = col_vals.str.extract(r"(\d+)\s+\(")[0].astype(float)
-        limiar = abs_vals.quantile(0.95)
-        if limiar == 0:
-            return ['' for _ in abs_vals]
-        return [f'color: {cor};' if v >= limiar else '' for v in abs_vals]
+        
+    def destacar_maiores_com_ponderacao(col_vals, cor="green", minimo_absoluto=3):
+        import numpy as np
+        import pandas as pd
+    
+        pct_vals = col_vals.str.extract(r"\(([\d.]+)%\)")[0]
+        abs_vals = col_vals.str.extract(r"^(\d+)\s+\(")[0]
+    
+        pct_vals = pd.to_numeric(pct_vals, errors='coerce').fillna(0)
+        abs_vals = pd.to_numeric(abs_vals, errors='coerce').fillna(0)
+    
+        # Evita log(0)
+        abs_log = np.log1p(abs_vals)
+    
+        # Score ponderado: z-score * log do volume
+        pct_zscore = (pct_vals - pct_vals.mean()) / (pct_vals.std() + 1e-6)
+        score = pct_zscore * abs_log
+    
+        # Definir limite como o percentil 95 dos scores positivos
+        limiar = score[abs_vals >= minimo_absoluto].quantile(0.70)
+    
+        return [f'color: {cor};' if s >= limiar and a >= minimo_absoluto else ''
+                for s, a in zip(score, abs_vals)]
 
     for fonte in fontes:
         st.markdown(f"### 🔹 UTM Source: `{fonte}`")
@@ -211,17 +225,23 @@ def exibir_tabela_utms_por_source(df_base):
         linha_total = soma_col.drop("Total").astype(int).astype(str) + " (" + \
                       (soma_col.drop("Total") / soma_col["Total"] * 100).round(1).astype(str) + "%)"
         linha_total["Total"] = int(soma_col["Total"])
-        combinado.loc["TOTAL GERAL"] = linha_total
+        combinado_sem_total = combinado.loc[combinado.index != "TOTAL GERAL"]
+        combinado_sem_total = combinado_sem_total.sort_values(by="Total", ascending=False)
+        combinado = pd.concat([combinado_sem_total, pd.DataFrame([linha_total], index=["TOTAL GERAL"])])
 
+        # Separar total geral
+        linha_total = combinado.loc[["TOTAL GERAL"]]
+        combinado_sem_total = combinado.drop(index="TOTAL GERAL")
+        
+        # Aplicar estilo apenas no corpo
         styled = combinado.style
         for col in ["A", "B"]:
             if col in combinado.columns:
-                styled = styled.apply(lambda s: destacar_top_20_abs(s, cor="green"), subset=[col])
+                styled = styled.apply(destacar_maiores_com_ponderacao, subset=[col], axis=0, cor="green")
         if "D" in combinado.columns:
-            styled = styled.apply(lambda s: destacar_top_20_abs(s, cor="red"), subset=["D"])
-
-        st.dataframe(styled, use_container_width=True)
+            styled = styled.apply(destacar_maiores_com_ponderacao, subset=["D"], axis=0, cor="red")
         
+        st.dataframe(styled, use_container_width=True)     
 
 
 def gerar_tabela_estatisticas_leadscore(df_leads):

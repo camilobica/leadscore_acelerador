@@ -180,6 +180,8 @@ with aba1:
         st.stop()
 
     st.markdown("---")
+    st.subheader("Considerações iniciais")
+    st.markdown("A entrada de leads no Leadscore considera apenas aqueles que responderam à pesquisa e possuem UTMs. Da mesma forma, os alunos analisados são apenas os que também estão vinculados a esses leads de cada lançamento.")
     df_filtrado = plot_entrada_leads(df_filtrado)
 
     st.markdown("---")

@@ -64,7 +64,7 @@ def plot_entrada_leads(df_filtrado: pd.DataFrame) -> pd.DataFrame:
     ax.xaxis.set_major_locator(mdates.DayLocator(interval=locator_interval))
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m'))
 
-    ax.set_title("Entrada de Leads por Período", fontsize=14, pad=20)
+    ax.set_title("Entrada de Leads por Dia", fontsize=14, pad=20)
     ax.set_xlabel("")
     ax.set_ylabel("")
     ax.set_yticks([])
