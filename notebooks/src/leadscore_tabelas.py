@@ -102,7 +102,7 @@ def exibir_tabela_faixa_origem(df_filtrado, df_leads, df_alunos):
     df_1 = pd.DataFrame(linhas_1)
     df_2 = pd.DataFrame(linhas_2)
 
-    col1, col2 = st.columns([1, 2])
+    col1, col2 = st.columns([1.2, 1.8])
 
     with col1:
         st.markdown("**📊 Conversão e Projeção**")
@@ -190,8 +190,8 @@ def exibir_tabela_utms_por_source(df_base):
         coluna_filtro = filtro_por_source.get(fonte)
 
         if coluna_filtro and coluna_filtro in df_grupo.columns:
-            st.markdown(f"Filtrar por `{coluna_filtro}` em `{fonte}`:")
-            col_filtro, _ = st.columns([3, 5])
+            st.markdown(f"Filtrar por `{coluna_filtro}` em {fonte}:")
+            col_filtro, _ = st.columns([4, 5])
             with col_filtro:
                 opcoes = df_grupo[coluna_filtro].dropna().unique()
                 filtro_valor = st.selectbox(
