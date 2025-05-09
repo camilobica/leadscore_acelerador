@@ -102,7 +102,7 @@ def exibir_tabela_faixa_origem(df_filtrado, df_leads, df_alunos):
     df_1 = pd.DataFrame(linhas_1)
     df_2 = pd.DataFrame(linhas_2)
 
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns([1, 2])
 
     with col1:
         st.markdown("**📊 Conversão e Projeção**")
