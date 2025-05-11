@@ -50,9 +50,6 @@ def destacar_total_linha(df):
 
 
 def exibir_tabela_faixa_origem(df_filtrado, df_leads, df_alunos):
-    import pandas as pd
-    import streamlit as st
-
     st.subheader("Distribuição de Leads por Faixa com Origem")
 
     colunas_leadscore = ["renda", "escolaridade", "idade", "nível", "situação profissional"]
