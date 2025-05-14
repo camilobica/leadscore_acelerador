@@ -25,7 +25,7 @@ from notebooks.src.leadscore_tabelas import (
     gerar_tabela_faixas_leads_alunos,
     destacar_total_linha,
     top1_utms_por_leads_A,
-    exibir_tabela_utms_por_source,
+    gerar_tabela_utm_personalizada,
     gerar_tabela_estatisticas_leadscore,
     detalhar_leadscore_por_variavel,
     gerar_comparativo_faixas,
@@ -190,7 +190,46 @@ with aba1:
     st.markdown("---")
     st.subheader("Análise Detalhada de Conversão - UTM's")
     plot_utm_source_por_faixa(df_filtrado)
-    exibir_tabela_utms_por_source(df_filtrado)
+    
+    st.markdown("---")
+    st.markdown("### 🔍 Análises por UTM's")
+
+    campos_utm = ["utm_source", "utm_campaign", "utm_medium", "utm_content", "utm_term"]
+    filtros_aplicados = {}
+    
+    df_base_filtrado = df_filtrado.copy()
+    
+    for idx, campo in enumerate(campos_utm):
+        st.subheader(f"🔹 Campo: `{campo}`")
+    
+        # Pega apenas valores válidos
+        opcoes = df_base_filtrado[campo].dropna().astype(str)
+        opcoes = opcoes[~opcoes.str.strip().isin(["", "nan"])]
+        opcoes = opcoes[~opcoes.str.contains(r"\{\{.*?\}\}")]
+        opcoes = sorted(opcoes.unique().tolist())
+    
+        col_filtro, _ = st.columns([2, 5])
+        with col_filtro:
+            valor_utm = st.selectbox(
+                label="Selecione o valor da UTM:",
+                options=["Todos"] + opcoes,
+                key=f"filtro_{campo}"
+            )
+    
+        # Salvar filtro aplicado
+        filtros_aplicados[campo] = valor_utm
+    
+        # Aplicar filtro somente se valor for específico
+        if valor_utm != "Todos":
+            df_base_filtrado = df_base_filtrado[df_base_filtrado[campo] == valor_utm]
+    
+        # Gerar tabela para o campo atual, com base no DF filtrado até aqui
+        styled_tabela = gerar_tabela_utm_personalizada(df_base_filtrado, campo)
+    
+        if styled_tabela is None:
+            st.info(f"Nenhum dado disponível para `{campo}`.")
+        else:
+            st.dataframe(styled_tabela, use_container_width=True)
 
 
 # === Aba 2: Como Calculamos ===

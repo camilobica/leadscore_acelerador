@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import streamlit as st
 
 def gerar_tabela_faixas_leads_alunos(df_leads, df_alunos):
@@ -127,118 +128,61 @@ def top1_utms_por_leads_A(df_leads, colunas_utm=["utm_source", "utm_campaign", "
     return resultados
 
 
-def exibir_tabela_utms_por_source(df_base):
-    import streamlit as st
-    colunas_utm = ["utm_source", "utm_campaign", "utm_medium", "utm_content"]
-    colunas_utm_sem_source = ["utm_campaign", "utm_medium", "utm_content"]
+def destacar_maiores_com_ponderacao(col_vals, cor="green", minimo_absoluto=3):
+    pct_vals = col_vals.str.extract(r"\(([\d.]+)%\)")[0]
+    abs_vals = col_vals.str.extract(r"^(\d+)\s+\(")[0]
 
-    filtro_por_source = {
-        "Facebook-Ads": "utm_campaign",
-        "Instagram": "utm_medium",
-        "Youtube": "utm_medium",
-        "Tiktok": "utm_medium"
-    }
+    pct_vals = pd.to_numeric(pct_vals, errors='coerce').fillna(0)
+    abs_vals = pd.to_numeric(abs_vals, errors='coerce').fillna(0)
 
-    # Remover linhas onde todos os campos utm_campaign, utm_medium, utm_content estão vazios ou nulos
-    df_base = df_base[~df_base[colunas_utm_sem_source].apply(lambda row: row.isna().all() or row.eq('').all(), axis=1)]
-    # Remover linhas com placeholders do Meta (ex: {{campaign.name}})
-    df_base = df_base[~df_base[colunas_utm_sem_source].apply(lambda row: row.astype(str).str.contains(r"\{\{.*?\}\}").any(), axis=1)]
+    abs_log = np.log1p(abs_vals)
+    pct_zscore = (pct_vals - pct_vals.mean()) / (pct_vals.std() + 1e-6)
+    score = pct_zscore * abs_log
+
+    limiar = score[abs_vals >= minimo_absoluto].quantile(0.70)
+
+    return [f'color: {cor};' if s >= limiar and a >= minimo_absoluto else ''
+            for s, a in zip(score, abs_vals)]
+
+def gerar_tabela_utm_personalizada(df, campo_utm, filtro_faixa="Todos"):
+    df_valido = df[df[campo_utm].notna() & (df[campo_utm] != "")].copy()
+    df_valido = df_valido[~df_valido[campo_utm].astype(str).str.contains(r"\{\{.*?\}\}")]
     
-    df_base = df_base.copy()
-    df_base['Campanhas'] = df_base[colunas_utm_sem_source] \
-        .fillna('') \
-        .applymap(lambda x: '' if str(x).strip().lower() == "nan" else str(x).strip()) \
-        .agg(' | '.join, axis=1)
+    # 🔒 Garantir que o índice do groupby não contenha 'nan' (como string ou valor real)
+    df_valido[campo_utm] = df_valido[campo_utm].astype(str).str.strip()
+    df_valido = df_valido[df_valido[campo_utm].str.lower() != "nan"]
 
-    fontes = df_base["utm_source"].dropna().astype(str)
-    fontes = fontes[~fontes.str.strip().isin(["", "nan", "fb"])]
-    fontes = fontes.unique().tolist()
+    if df_valido.empty:
+        return None
 
-    # Priorizar metaads no topo
-    fontes = ["Facebook-Ads"] + sorted([f for f in fontes if f != "Facebook-Ads"])
-        
-    def destacar_maiores_com_ponderacao(col_vals, cor="green", minimo_absoluto=3):
-        import numpy as np
-        import pandas as pd
-    
-        pct_vals = col_vals.str.extract(r"\(([\d.]+)%\)")[0]
-        abs_vals = col_vals.str.extract(r"^(\d+)\s+\(")[0]
-    
-        pct_vals = pd.to_numeric(pct_vals, errors='coerce').fillna(0)
-        abs_vals = pd.to_numeric(abs_vals, errors='coerce').fillna(0)
-    
-        # Evita log(0)
-        abs_log = np.log1p(abs_vals)
-    
-        # Score ponderado: z-score * log do volume
-        pct_zscore = (pct_vals - pct_vals.mean()) / (pct_vals.std() + 1e-6)
-        score = pct_zscore * abs_log
-    
-        # Definir limite como o percentil 95 dos scores positivos
-        limiar = score[abs_vals >= minimo_absoluto].quantile(0.70)
-    
-        return [f'color: {cor};' if s >= limiar and a >= minimo_absoluto else ''
-                for s, a in zip(score, abs_vals)]
+    dist = df_valido.groupby([campo_utm, "leadscore_faixa"]).size().unstack(fill_value=0)
+    dist["Total"] = dist.sum(axis=1)
 
-    for fonte in fontes:
-        st.markdown(f"### 🔹 UTM Source: `{fonte}`")
-        df_grupo = df_base[df_base["utm_source"] == fonte]
+    percentuais = (dist.drop(columns="Total").T / dist["Total"]).T * 100
+    combinado = dist.drop(columns="Total").astype(str) + " (" + percentuais.round(1).astype(str) + "%)"
+    combinado["Total"] = dist["Total"]
 
-        coluna_filtro = filtro_por_source.get(fonte)
+    combinado = combinado.sort_values(by="Total", ascending=False)
 
-        if coluna_filtro and coluna_filtro in df_grupo.columns:
-            st.markdown(f"Filtrar por `{coluna_filtro}` em {fonte}:")
-            col_filtro, _ = st.columns([4, 5])
-            with col_filtro:
-                opcoes = df_grupo[coluna_filtro].dropna().unique()
-                filtro_valor = st.selectbox(
-                    label="",
-                    options=["Todas"] + sorted(opcoes),
-                    key=f"{fonte}_{coluna_filtro}"
-                )
+    # 🔒 Remover qualquer índice residual que seja "nan"
+    combinado = combinado[combinado.index.astype(str).str.lower() != "nan"]
 
-            if filtro_valor != "Todas":
-                df_grupo = df_grupo[df_grupo[coluna_filtro] == filtro_valor]
+    soma_col = dist.sum()
+    linha_total = soma_col.drop("Total").astype(int).astype(str) + " (" + \
+                  (soma_col.drop("Total") / soma_col["Total"] * 100).round(1).astype(str) + "%)"
+    linha_total["Total"] = int(soma_col["Total"])
 
-        if df_grupo.empty:
-            st.info("Nenhum dado para esta combinação.")
-            continue
+    combinado_sem_total = combinado.loc[combinado.index != "TOTAL GERAL"]
+    combinado = pd.concat([combinado_sem_total, pd.DataFrame([linha_total], index=["TOTAL GERAL"])])
 
-        dist = df_grupo.groupby(["Campanhas", "leadscore_faixa"]).size().unstack(fill_value=0)
-        dist["Total"] = dist.sum(axis=1)
+    styled = combinado.style
+    for col in ["A", "B"]:
+        if col in combinado.columns:
+            styled = styled.apply(destacar_maiores_com_ponderacao, subset=[col], axis=0, cor="green")
+    if "D" in combinado.columns:
+        styled = styled.apply(destacar_maiores_com_ponderacao, subset=["D"], axis=0, cor="red")
 
-        percentuais = (dist.drop(columns="Total").T / dist["Total"]).T * 100
-        combinado = dist.drop(columns="Total").astype(str) + " (" + percentuais.round(1).astype(str) + "%)"
-        combinado["Total"] = dist["Total"]
-
-        # Ordenar por A
-        if "A" in combinado.columns:
-            combinado["_ordem"] = combinado["A"].str.extract(r"(\d+)\s+\(")[0].fillna(0).astype(float)
-            combinado = combinado.sort_values(by="_ordem", ascending=False)
-            combinado.drop(columns=["_ordem"], inplace=True)
-
-        # Linha TOTAL GERAL
-        soma_col = dist.sum()
-        linha_total = soma_col.drop("Total").astype(int).astype(str) + " (" + \
-                      (soma_col.drop("Total") / soma_col["Total"] * 100).round(1).astype(str) + "%)"
-        linha_total["Total"] = int(soma_col["Total"])
-        combinado_sem_total = combinado.loc[combinado.index != "TOTAL GERAL"]
-        combinado_sem_total = combinado_sem_total.sort_values(by="Total", ascending=False)
-        combinado = pd.concat([combinado_sem_total, pd.DataFrame([linha_total], index=["TOTAL GERAL"])])
-
-        # Separar total geral
-        linha_total = combinado.loc[["TOTAL GERAL"]]
-        combinado_sem_total = combinado.drop(index="TOTAL GERAL")
-        
-        # Aplicar estilo apenas no corpo
-        styled = combinado.style
-        for col in ["A", "B"]:
-            if col in combinado.columns:
-                styled = styled.apply(destacar_maiores_com_ponderacao, subset=[col], axis=0, cor="green")
-        if "D" in combinado.columns:
-            styled = styled.apply(destacar_maiores_com_ponderacao, subset=["D"], axis=0, cor="red")
-        
-        st.dataframe(styled, use_container_width=True)     
+    return styled
 
 
 def gerar_tabela_estatisticas_leadscore(df_leads):
