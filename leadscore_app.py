@@ -194,7 +194,7 @@ with aba1:
     st.markdown("---")
     st.markdown("### 🔍 Análises por UTM's")
 
-    campos_utm = ["utm_source", "utm_campaign", "utm_medium", "utm_content", "utm_term"]
+    campos_utm = ["utm_source", "utm_campaign", "utm_medium", "utm_content"]
     filtros_aplicados = {}
     
     df_base_filtrado = df_filtrado.copy()
